@@ -2,9 +2,7 @@
 
 Builds a barebones cross compiler to `$HOME/opt/cross/`.
 
-This script automates the process described on the [OSDev Wiki][1] 
-
-[1] http://wiki.osdev.org/GCC_Cross-Compiler.
+This script automates the process described on the [OSDev Wiki](http://wiki.osdev.org/GCC_Cross-Compiler).
 
 ## Build
 `./cross_setup`
