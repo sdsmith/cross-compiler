@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+# Builds cross compiler
+#
+TARGET=i686-elf
+SRC_DIR=src
+
+
+
+download_dep () {
+    TOOL=$1
+    BASE_URL=$2
+    EXT=$3
+
+    FULL_URL="${BASE_URL}/${TOOL}${EXT}"
+
+    if ! [[ -d "${TOOL}" ]] ; then
+        if [[ $(wget ${FULL_URL}) -eq 0 ]] ; then
+            tar -xf ${TOOL}${EXT}
+            return 0;
+        else
+            printf '%s\n' "Failed to download ${TOOL}" >&2
+        fi
+    else
+        printf '%s\n' "Skipping: ${TOOL} already present"
+    fi
+    return 1;
+}
+
+
+### Set shell environment
+export PREFIX="$HOME/opt/cross"
+export TARGET
+export PATH="$PREFIX/bin:$PATH"
+
+
+### Download dependencies
+pushd . &> /dev/null
+mkdir -p $SRC_DIR
+cd $SRC_DIR
+
+# Binutils
+BINUTILS=binutils-2.28
+if download_dep $BINUTILS 'https://ftp.gnu.org/gnu/binutils' '.tar.gz'; then
+    # Build
+    echo "Building $BINUTILS"
+    pushd .
+    mkdir -p build-binutils
+    cd build-binutils
+    ../$BINUTILS/configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
+    make
+    make install    
+    popd
+fi
+
+# GCC
+GCC=gcc-6.3.0
+if download_dep $GCC "http://gcc.parentingamerica.com/releases/${GCC}" '.tar.gz'; then
+    # Download GCC pre-reqs for floating point support (GMP, MPFR, Mpc)
+    echo "Downloading ${GCC} pre-requisites"
+    pushd .
+    cd $GCC
+    ./contrib/download_prerequisites
+    popd
+
+    # Build
+    echo "Building $GCC"
+    pushd .
+    mkdir -p build-gcc
+    cd build-gcc
+    ../$GCC/configure --target=$TARGET --prefix="$PREFIX" --disable-nls -enable-languages=c,c++ --without-headers
+    make all-gcc
+    make all-target-libgcc
+    make install gcc
+    make install-target-libgcc
+    popd
+fi
+
+# Texinfo
+TEXINFO=texinfo-6.3
+if download_dep $TEXINFO 'https://ftp.gnu.org/gnu/texinfo' '.tar.xz'; then
+    # Build
+    echo "Building $TEXINFO"
+    pushd .
+    mkdir -p build-texinfo
+    cd build-texinfo
+    ../$TEXINFO/configure --prefix="$PREFIX"
+    make install
+    printf "WARNING: You must also run the following command yourself:\nmake TEXMF=/your/texmf install-tex\n"
+fi
+
+###
+popd &> /dev/null
